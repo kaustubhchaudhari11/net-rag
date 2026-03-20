@@ -1,0 +1,22 @@
+import os
+from dataclasses import dataclass
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+@dataclass(frozen=True)
+class Settings:
+    embedding_model: str = os.getenv(
+        "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
+    )
+    vector_db_dir: str = os.getenv("VECTOR_DB_DIR", "./app/data/vector_db")
+    top_k: int = int(os.getenv("TOP_K", "5"))
+    chunk_size: int = int(os.getenv("CHUNK_SIZE", "900"))
+    chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "120"))
+    api_host: str = os.getenv("API_HOST", "127.0.0.1")
+    api_port: int = int(os.getenv("API_PORT", "8000"))
+
+
+settings = Settings()
