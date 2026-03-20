@@ -48,11 +48,14 @@ if st.button("Ask Net-RAG", type="primary"):
                 result = resp.json()["result"]
                 st.markdown("### Answer")
                 st.write(result["answer"])
+                st.caption(f"Mode: {result.get('mode', 'unknown')}")
                 st.markdown("### Sources")
                 st.write(result.get("sources", []))
                 st.markdown("### Retrieved Context")
                 for idx, item in enumerate(result.get("contexts", []), start=1):
-                    with st.expander(f"Context {idx} - {item['metadata'].get('source_file', 'unknown')}"):
+                    citation_id = item["metadata"].get("citation_id", f"C{idx}")
+                    source_file = item["metadata"].get("source_file", "unknown")
+                    with st.expander(f"[{citation_id}] {source_file}"):
                         st.write(item["content"])
             else:
                 st.error(resp.text)

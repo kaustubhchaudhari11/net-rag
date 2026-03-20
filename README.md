@@ -116,7 +116,7 @@ docker compose up --build
 
 ## 8) Next upgrades to make it exceptional
 
-- Add LLM answer synthesis with grounded citations.
+- Add LLM answer synthesis with grounded citations. (Phase 2 started: configurable in `.env`)
 - Add async ingestion workers and progress/status API.
 - Add evaluation suite (retrieval precision, latency, groundedness checks).
 - Deploy API + UI as separate cloud services.
@@ -124,3 +124,21 @@ docker compose up --build
 ## License
 
 MIT (you can replace this with your preferred license).
+
+## Phase 2: Grounded LLM Answers
+
+The query pipeline now supports optional grounded LLM synthesis on top of retrieved chunks.
+
+1. Configure `.env`:
+
+```powershell
+LLM_MODEL=gpt-4o-mini
+LLM_API_KEY=your_api_key
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_TIMEOUT_SEC=60
+```
+
+2. Behavior:
+
+- If `LLM_MODEL` + `LLM_API_KEY` are set, `/query` returns an LLM-generated answer constrained to retrieved contexts with inline citations (`[C1]`, `[C2]`, ...).
+- If not set (or LLM call fails), Net-RAG falls back to retrieval-only mode and still returns cited contexts.

@@ -17,6 +17,10 @@ class Settings:
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "120"))
     api_host: str = os.getenv("API_HOST", "127.0.0.1")
     api_port: int = int(os.getenv("API_PORT", "8000"))
+    llm_model: str = os.getenv("LLM_MODEL", "")
+    llm_api_key: str = os.getenv("LLM_API_KEY", "")
+    llm_base_url: str = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
+    llm_timeout_sec: int = int(os.getenv("LLM_TIMEOUT_SEC", "60"))
 
 
 settings = Settings()
