@@ -1,5 +1,6 @@
 import re
-from typing import Any, Dict, List
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
@@ -59,8 +60,15 @@ def _build_prompt(query: str, contexts: List[Dict[str, Any]]) -> str:
     for item in contexts:
         citation_id = item["metadata"].get("citation_id", "C?")
         source_file = item["metadata"].get("source_file", "unknown")
+        page = item["metadata"].get("page")
+        section = item["metadata"].get("section_hint")
         chunk = item["content"]
-        joined_context.append(f"[{citation_id}] Source: {source_file}\n{chunk}")
+        header = f"[{citation_id}] Source: {source_file}"
+        if page is not None:
+            header += f" | Page: {page}"
+        if section:
+            header += f" | Section: {section}"
+        joined_context.append(f"{header}\n{chunk}")
 
     context_block = "\n\n".join(joined_context)
     return (
@@ -77,7 +85,24 @@ def _build_prompt(query: str, contexts: List[Dict[str, Any]]) -> str:
     )
 
 
-def _generate_grounded_answer(query: str, contexts: List[Dict[str, Any]]) -> str:
+def _parse_llm_usage(body: Dict[str, Any]) -> Optional[Dict[str, int]]:
+    raw = body.get("usage")
+    if not isinstance(raw, dict):
+        return None
+    out: Dict[str, int] = {}
+    for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
+        val = raw.get(key)
+        if val is not None:
+            try:
+                out[key] = int(val)
+            except (TypeError, ValueError):
+                pass
+    return out or None
+
+
+def _generate_grounded_answer(
+    query: str, contexts: List[Dict[str, Any]]
+) -> Tuple[str, Optional[Dict[str, int]]]:
     url = f"{settings.llm_base_url.rstrip('/')}/chat/completions"
     headers = {
         "Authorization": f"Bearer {settings.llm_api_key}",
@@ -94,7 +119,26 @@ def _generate_grounded_answer(query: str, contexts: List[Dict[str, Any]]) -> str
     response = requests.post(url, headers=headers, json=payload, timeout=settings.llm_timeout_sec)
     response.raise_for_status()
     body = response.json()
-    return body["choices"][0]["message"]["content"].strip()
+    answer = body["choices"][0]["message"]["content"].strip()
+    usage = _parse_llm_usage(body)
+    return answer, usage
+
+
+def _attach_metrics(
+    result: Dict[str, Any],
+    *,
+    t0: float,
+    retrieval_ms: float,
+    llm_ms: Optional[float],
+    llm_usage: Optional[Dict[str, int]],
+) -> Dict[str, Any]:
+    total_ms = round((time.perf_counter() - t0) * 1000, 2)
+    result["latency_ms"] = total_ms
+    if settings.include_dev_metrics:
+        result["retrieval_ms"] = round(retrieval_ms, 2)
+        result["llm_ms"] = round(llm_ms, 2) if llm_ms is not None else None
+        result["llm_usage"] = llm_usage
+    return result
 
 
 def _extract_citations_used(answer: str, num_contexts: int) -> List[str]:
@@ -128,9 +172,13 @@ def _citation_warnings(answer: str, num_contexts: int) -> List[str]:
 
 
 def build_answer(query: str, top_k: int | None = None) -> Dict[str, Any]:
+    t0 = time.perf_counter()
+    t_search0 = time.perf_counter()
     raw_contexts = search_context(query, top_k)
+    retrieval_ms = (time.perf_counter() - t_search0) * 1000
+
     if not raw_contexts:
-        return {
+        result = {
             "answer": "No context found. Please ingest documents first.",
             "mode": "no_context",
             "sources": [],
@@ -141,6 +189,9 @@ def build_answer(query: str, top_k: int | None = None) -> Dict[str, Any]:
             ],
             "citations_used": [],
         }
+        return _attach_metrics(
+            result, t0=t0, retrieval_ms=retrieval_ms, llm_ms=None, llm_usage=None
+        )
 
     contexts = _contexts_with_citation_ids(raw_contexts)
     n_ctx = len(contexts)
@@ -153,10 +204,13 @@ def build_answer(query: str, top_k: int | None = None) -> Dict[str, Any]:
 
     warnings: List[str] = []
     citations_used: List[str] = []
+    llm_ms: Optional[float] = None
+    llm_usage: Optional[Dict[str, int]] = None
 
     if _llm_enabled():
+        t_llm0 = time.perf_counter()
         try:
-            answer = _generate_grounded_answer(query, contexts)
+            answer, llm_usage = _generate_grounded_answer(query, contexts)
             mode = "llm_grounded"
             citations_used = _extract_citations_used(answer, n_ctx)
             warnings.extend(_citation_warnings(answer, n_ctx))
@@ -167,6 +221,9 @@ def build_answer(query: str, top_k: int | None = None) -> Dict[str, Any]:
             warnings.append(f"LLM request failed ({type(exc).__name__}): {detail}")
             answer = _fallback_answer(query, contexts)
             mode = "retrieval_fallback"
+            llm_usage = None
+        finally:
+            llm_ms = (time.perf_counter() - t_llm0) * 1000
     else:
         answer = _fallback_answer(query, contexts)
         mode = "retrieval_only"
@@ -174,7 +231,7 @@ def build_answer(query: str, top_k: int | None = None) -> Dict[str, Any]:
             "LLM synthesis disabled: set LLM_MODEL and LLM_API_KEY in .env for grounded answers."
         )
 
-    return {
+    result = {
         "answer": answer,
         "mode": mode,
         "sources": sources,
@@ -182,3 +239,10 @@ def build_answer(query: str, top_k: int | None = None) -> Dict[str, Any]:
         "warnings": warnings,
         "citations_used": citations_used,
     }
+    return _attach_metrics(
+        result,
+        t0=t0,
+        retrieval_ms=retrieval_ms,
+        llm_ms=llm_ms,
+        llm_usage=llm_usage,
+    )

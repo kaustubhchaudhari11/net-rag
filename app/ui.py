@@ -49,6 +49,20 @@ if st.button("Ask Net-RAG", type="primary"):
                 st.markdown("### Answer")
                 st.write(result["answer"])
                 st.caption(f"Mode: {result.get('mode', 'unknown')}")
+                if "latency_ms" in result:
+                    cap_parts = [f"Total {result['latency_ms']} ms"]
+                    if result.get("retrieval_ms") is not None:
+                        cap_parts.append(f"retrieval {result['retrieval_ms']} ms")
+                    if result.get("llm_ms") is not None:
+                        cap_parts.append(f"LLM {result['llm_ms']} ms")
+                    st.caption(" · ".join(cap_parts))
+                    usage = result.get("llm_usage")
+                    if usage:
+                        st.caption(
+                            f"Tokens — prompt: {usage.get('prompt_tokens', '—')}, "
+                            f"completion: {usage.get('completion_tokens', '—')}, "
+                            f"total: {usage.get('total_tokens', '—')}"
+                        )
                 cites = result.get("citations_used") or []
                 if cites:
                     st.caption(f"Citations used in answer: {', '.join(cites)}")
@@ -61,9 +75,18 @@ if st.button("Ask Net-RAG", type="primary"):
                 st.write(result.get("sources", []))
                 st.markdown("### Retrieved Context")
                 for idx, item in enumerate(result.get("contexts", []), start=1):
-                    citation_id = item["metadata"].get("citation_id", f"C{idx}")
-                    source_file = item["metadata"].get("source_file", "unknown")
-                    with st.expander(f"[{citation_id}] {source_file}"):
+                    meta = item["metadata"]
+                    citation_id = meta.get("citation_id", f"C{idx}")
+                    source_file = meta.get("source_file", "unknown")
+                    label = f"[{citation_id}] {source_file}"
+                    if meta.get("page") is not None:
+                        label += f" · p.{meta['page']}"
+                    if meta.get("section_hint"):
+                        sh = meta["section_hint"]
+                        if len(sh) > 56:
+                            sh = sh[:53] + "…"
+                        label += f" · {sh}"
+                    with st.expander(label):
                         st.write(item["content"])
             else:
                 st.error(resp.text)

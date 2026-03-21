@@ -21,6 +21,12 @@ class Settings:
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
     llm_base_url: str = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
     llm_timeout_sec: int = int(os.getenv("LLM_TIMEOUT_SEC", "60"))
+    # When false, omit latency breakdown and LLM token usage from /query (answer unchanged).
+    include_dev_metrics: bool = os.getenv("INCLUDE_DEV_METRICS", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
 
 
 settings = Settings()

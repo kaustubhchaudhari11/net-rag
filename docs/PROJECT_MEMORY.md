@@ -36,8 +36,8 @@ Use this file so assistants and future you can resume with the same **objective*
 |-------|--------|--------|
 | **Phase 0** — Scaffold | Done | Modular pipeline, services, sample docs, Docker, README |
 | **Phase 1** — Retrieval MVP | Done | Ingest, chunk, FAISS, query returns contexts + sources |
-| **Phase 2** — Grounded LLM | **In progress** | Optional synthesis with `[C1]`-style citations; fallback if no key / API error |
-| **Phase 2.1** — Quality & trust | **In progress** | Stricter prompts; `warnings` + `citations_used` on `/query`; local run scripts |
+| **Phase 2** — Grounded LLM | **Done** | Optional synthesis with `[C#]` citations, fallback, citation sanity warnings |
+| **Phase 2.1** — Quality & trust | **Done** | Stricter prompts; `warnings` / `citations_used`; **`latency_ms`** + dev breakdown + **`llm_usage`**; chunk **`page`** + **`section_hint`**; Windows `.bat` run |
 | **GitHub** | Done | Empty repo created; `main` pushed with Phase 2 commit |
 | **Windows local run** | Done (approved) | `scripts/*.bat` + `docs/WINDOWS_SETUP.md` — no `Activate.ps1` required |
 
@@ -75,7 +75,8 @@ Use this file so assistants and future you can resume with the same **objective*
 ## Active task list (edit when you pick work)
 
 - [x] Phase 2.1: tighten LLM prompt + citation rules
-- [x] Phase 2.1: optional structured fields on `/query` response (`warnings`, `citations_used`)
+- [x] Phase 2.1: structured `/query` fields (`warnings`, `citations_used`, metrics, `llm_usage`)
+- [x] Phase 2.1: chunk metadata (`page`, `section_hint`) + prompt/UI surfacing
 - [ ] Phase 3: design `POST /ingest/job` + `GET /ingest/status/{id}` (or equivalent)
 - [ ] Phase 4: spike hybrid retrieval (keyword + vector)
 - [ ] Phase 5: add 5–10 eval questions and a simple script to run them

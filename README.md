@@ -157,7 +157,7 @@ docker compose up --build
 
 ## 8) Next upgrades to make it exceptional
 
-- Add LLM answer synthesis with grounded citations. (Phase 2 started: configurable in `.env`)
+- ~~Add LLM answer synthesis with grounded citations.~~ **Phase 2 / 2.1 done** (see below).
 - Add async ingestion workers and progress/status API.
 - Add evaluation suite (retrieval precision, latency, groundedness checks).
 - Deploy API + UI as separate cloud services.
@@ -183,3 +183,11 @@ LLM_TIMEOUT_SEC=60
 
 - If `LLM_MODEL` + `LLM_API_KEY` are set, `/query` returns an LLM-generated answer constrained to retrieved contexts with inline citations (`[C1]`, `[C2]`, ...).
 - If not set (or LLM call fails), Net-RAG falls back to retrieval-only mode and still returns cited contexts.
+
+### Phase 2.1 (complete): trust, metrics, chunk metadata
+
+- **Chunk metadata:** PDF **page** (from loaders) is normalized and stored; **section_hint** is inferred from Markdown headings (`# …`) at the start of each chunk. **Re-run ingestion** after upgrading so existing FAISS indexes pick up `section_hint`.
+- **`/query` response:** always includes **`latency_ms`** (end-to-end). When `INCLUDE_DEV_METRICS=true` (default in `.env.example`), also **`retrieval_ms`**, **`llm_ms`** (if an LLM call was attempted), and **`llm_usage`** (`prompt_tokens`, `completion_tokens`, `total_tokens`) when the provider returns them.
+- **UI:** shows timing captions, token line when present, and context expanders include page / section when available.
+
+Set `INCLUDE_DEV_METRICS=false` to hide breakdown and token counts (total `latency_ms` is still returned).
