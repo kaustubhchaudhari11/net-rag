@@ -49,6 +49,14 @@ if st.button("Ask Net-RAG", type="primary"):
                 st.markdown("### Answer")
                 st.write(result["answer"])
                 st.caption(f"Mode: {result.get('mode', 'unknown')}")
+                cites = result.get("citations_used") or []
+                if cites:
+                    st.caption(f"Citations used in answer: {', '.join(cites)}")
+                warns = result.get("warnings") or []
+                if warns:
+                    with st.expander("Warnings", expanded=False):
+                        for w in warns:
+                            st.markdown(f"- {w}")
                 st.markdown("### Sources")
                 st.write(result.get("sources", []))
                 st.markdown("### Retrieved Context")

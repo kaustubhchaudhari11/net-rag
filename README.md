@@ -4,6 +4,8 @@ Net-RAG is a Level-1 Retrieval-Augmented Generation project focused on networkin
 
 It ingests technical docs, chunks them by structure, embeds them locally, and retrieves the most relevant context for user questions through a Streamlit app.
 
+**Living roadmap + tasks:** see [`docs/PROJECT_MEMORY.md`](docs/PROJECT_MEMORY.md) (objective, progress, upcoming phases).
+
 ## 1) Why this project stands out
 
 - Domain is highly technical (network protocols + architecture).
@@ -46,12 +48,27 @@ net-rag/
   scripts/
     ingest.py
     run_local.ps1
+    run_ui.ps1
+    setup_local.bat
+    run_api.bat
+    run_ui.bat
   docs/
     architecture.md
+    WINDOWS_SETUP.md
+    PROJECT_MEMORY.md
   sample_docs/
 ```
 
 ## 4) Setup
+
+### Windows (recommended if `Activate.ps1` is blocked)
+
+Use **Command Prompt** (`cmd`). Full steps: [`docs/WINDOWS_SETUP.md`](docs/WINDOWS_SETUP.md).
+
+1. One-time: `scripts\setup_local.bat` (creates `.venv`, installs deps, copies `.env` if missing).
+2. Put RFC/manual files inside `sample_docs/` (or another folder you ingest from).
+
+### All platforms — PowerShell / manual
 
 1. Create and activate virtual environment:
 
@@ -60,6 +77,8 @@ cd C:\Users\kaust\Documents\net-rag
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
+
+If PowerShell blocks scripts: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
 2. Install dependencies:
 
@@ -75,19 +94,41 @@ copy .env.example .env
 
 4. Put RFC/manual files inside `sample_docs/`.
 
-## 5) Run
+## 5) Run locally (two terminals)
 
-Start API:
+### Windows — Command Prompt (no activation)
+
+**Window 1 — API:** `scripts\run_api.bat`  
+**Window 2 — UI:** `scripts\run_ui.bat`  
+
+(From repo root, or `cd /d C:\Users\kaust\Documents\net-rag` first.)
+
+### PowerShell — with venv activated
+
+**Terminal 1 — API**
 
 ```powershell
-python -m uvicorn app.api:app --reload --host 127.0.0.1 --port 8000
+.\scripts\run_local.ps1
 ```
 
-In another terminal, start UI:
+**Terminal 2 — UI**
 
 ```powershell
-streamlit run app/ui.py
+.\scripts\run_ui.ps1
 ```
+
+### Any shell — without activating
+
+```bat
+.venv\Scripts\python.exe -m uvicorn app.api:app --reload --host 127.0.0.1 --port 8000
+```
+
+```bat
+.venv\Scripts\python.exe -m streamlit run app/ui.py
+```
+
+- API health: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
+- Streamlit: [http://localhost:8501](http://localhost:8501)
 
 Use the sidebar in Streamlit to ingest documents, then ask protocol/architecture questions.
 
