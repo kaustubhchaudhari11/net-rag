@@ -19,6 +19,7 @@ It ingests technical docs, chunks them by structure, embeds them locally, and re
 - Chunks technical documents with structure-aware splitting.
 - Builds local semantic vector index with FAISS.
 - Exposes retrieval pipeline through FastAPI endpoints.
+- **Phase 3:** Async ingestion jobs (`POST /ingest/job` + status polling) with a serialized worker queue (distributed-ready contract; swap backend to Redis/RQ later — see `docs/architecture.md`).
 - Provides interactive Q/A experience with Streamlit.
 - Includes Docker Compose for multi-service local deployment.
 
@@ -130,7 +131,22 @@ copy .env.example .env
 - API health: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
 - Streamlit: [http://localhost:8501](http://localhost:8501)
 
-Use the sidebar in Streamlit to ingest documents, then ask protocol/architecture questions.
+Use the sidebar in Streamlit to ingest documents (**background job** recommended), then ask protocol/architecture questions.
+
+### API quick reference (OpenAPI: `/docs`)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/health` | Liveness; `?detailed=true` includes ingest worker / queue depth |
+| POST | `/ingest` | Sync ingest (blocks until done) |
+| POST | `/ingest/job` | Queue background ingest → `{ job_id, status_url }` |
+| GET | `/ingest/status/{job_id}` | `queued` / `running` / `succeeded` / `failed` + progress |
+| GET | `/ingest/jobs?limit=20` | Recent jobs (ephemeral, in-memory) |
+| POST | `/query` | Grounded retrieval (+ optional LLM) |
+
+**Scaling note:** Use **one uvicorn worker** per API instance for the default in-memory job store, or externalize jobs to Redis/workers (see `docs/architecture.md`).
+
+**Docker:** Paths must exist **on the API container** (e.g. `/app/sample_docs` when using compose volumes).
 
 ### Run with Docker (distributed-style local setup)
 
@@ -153,12 +169,13 @@ docker compose up --build
 - Built a domain-specific RAG platform to analyze networking RFCs and infrastructure architecture manuals.
 - Designed a distributed-ready architecture with decoupled FastAPI retrieval service and Streamlit client.
 - Implemented local vector retrieval using LangChain + FAISS with CPU-optimized sentence-transformer embeddings.
+- Shipped **async ingestion jobs** with a **stable job/status API** and documented path to **Redis/RQ** for true horizontal scale.
 - Reduced operational cost by running fully local inference while maintaining fast semantic search over technical corpora.
 
 ## 8) Next upgrades to make it exceptional
 
 - ~~Add LLM answer synthesis with grounded citations.~~ **Phase 2 / 2.1 done** (see below).
-- Add async ingestion workers and progress/status API.
+- ~~Add async ingestion workers and progress/status API.~~ **Phase 3 done** — job API + queue; evolve to Redis/RQ for multi-replica.
 - Add evaluation suite (retrieval precision, latency, groundedness checks).
 - Deploy API + UI as separate cloud services.
 

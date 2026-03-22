@@ -21,7 +21,7 @@ Use this file so assistants and future you can resume with the same **objective*
 
 | Layer        | Choice                                      |
 |-------------|----------------------------------------------|
-| API         | FastAPI (`/ingest`, `/query`, `/health`)     |
+| API         | FastAPI: `/ingest`, `/ingest/job`, `/ingest/status/{id}`, `/ingest/jobs`, `/query`, `/health` |
 | RAG         | LangChain + FAISS (local index on disk)      |
 | Embeddings  | Sentence Transformers (e.g. `all-MiniLM-L6-v2`) |
 | UI          | Streamlit                                    |
@@ -40,26 +40,25 @@ Use this file so assistants and future you can resume with the same **objective*
 | **Phase 2.1** — Quality & trust | **Done** | Stricter prompts; `warnings` / `citations_used`; **`latency_ms`** + dev breakdown + **`llm_usage`**; chunk **`page`** + **`section_hint`**; Windows `.bat` run |
 | **GitHub** | Done | Empty repo created; `main` pushed with Phase 2 commit |
 | **Windows local run** | Done (approved) | `scripts/*.bat` + `docs/WINDOWS_SETUP.md` — no `Activate.ps1` required |
-| **Phase 3** — Ingestion at scale | **Next (in progress)** | See below; keep **`POST /ingest`** working for backward compatibility |
+| **Phase 3** — Ingestion at scale | **Done** | `POST /ingest/job`, `GET /ingest/status/{id}`, `GET /ingest/jobs`; threaded queue; sync `/ingest` kept |
 
 ---
 
 ## Current focus (session memory)
 
-- **Phases 0 → 2.1 are complete** and changes are intended to be **on GitHub** (`main`); local features include grounded LLM (optional), metrics on `/query`, chunk `page` / `section_hint`, Windows batch run path.
-- **Next:** **Phase 3** — background/async ingestion, **job id**, **status polling**, Streamlit progress. Prefer **in-process thread + shared job store** first (no Redis), then optional Redis/Celery later if needed.
+- **Phases 0 → 3 are complete** in code: job-based ingest + polling UI; **distributed evolution** documented in `docs/architecture.md` (Redis/RQ, multi-replica notes).
+- **Next:** **Phase 4** — hybrid retrieval (BM25 + dense); then eval suite (Phase 5).
 - **Reminder:** Re-ingest once after 2.1 if you need **`section_hint`** on old indexes.
+- **Ops:** Run API with **`uvicorn --workers 1`** (or Docker image default) so in-memory jobs stay coherent; scale ingest via external queue later.
 
 ---
 
 ## Upcoming phases (roadmap)
 
-### Phase 3 — Ingestion at scale (active)
+### Phase 3 — Ingestion at scale *(shipped)*
 
-- Background ingestion (thread or task queue); **`POST /ingest/job`** returns `{ job_id }`.
-- **`GET /ingest/status/{job_id}`** → `pending | running | succeeded | failed` + message/progress percent + result summary.
-- Streamlit: start job, poll status, show progress bar / log line.
-- Stretch: incremental re-ingest; cancel job.
+- Implemented: **`POST /ingest/job`**, **`GET /ingest/status/{job_id}`**, **`GET /ingest/jobs`**, progress in `ingestion_service`, Streamlit async mode.
+- Stretch: incremental re-ingest; cancel job; Redis-backed store.
 
 ### Phase 4 — Retrieval quality
 
@@ -82,7 +81,7 @@ Use this file so assistants and future you can resume with the same **objective*
 - [x] Phase 2.1: tighten LLM prompt + citation rules
 - [x] Phase 2.1: structured `/query` fields (`warnings`, `citations_used`, metrics, `llm_usage`)
 - [x] Phase 2.1: chunk metadata (`page`, `section_hint`) + prompt/UI surfacing
-- [ ] **Phase 3 (current):** `POST /ingest/job` + `GET /ingest/status/{job_id}` + in-memory job registry + threaded worker; Streamlit poll UI (**keep** existing `POST /ingest` sync endpoint)
+- [x] Phase 3: `POST /ingest/job` + `GET /ingest/status/{job_id}` + in-memory job registry + threaded worker; Streamlit poll UI; sync `POST /ingest` retained
 - [ ] Phase 4: spike hybrid retrieval (keyword + vector)
 - [ ] Phase 5: add 5–10 eval questions and a simple script to run them
 
