@@ -5,6 +5,7 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_core.documents import Document
 
 from app.rag.chunker import split_documents
+from app.rag.hybrid_retrieval import invalidate_bm25_cache
 from app.rag.vector_store import save_documents_to_index
 
 ProgressCallback = Optional[Callable[[Dict[str, Any]], None]]
@@ -115,6 +116,7 @@ def ingest_documents(input_dir: str, *, progress: ProgressCallback = None) -> di
         files_done=n_files,
     )
     count = save_documents_to_index(chunks)
+    invalidate_bm25_cache()
 
     unique_files = {d.metadata.get("source_file", "unknown") for d in docs}
     _emit(

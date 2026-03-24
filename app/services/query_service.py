@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 
 from app.config import settings
+from app.rag.hybrid_retrieval import hybrid_search_rrf
 from app.rag.vector_store import load_index
 
 _CITATION_PATTERN = re.compile(r"\[C(\d+)\]")
@@ -17,20 +18,45 @@ SYSTEM_MESSAGE = (
 )
 
 
-def search_context(query: str, top_k: int | None = None) -> List[Dict[str, Any]]:
-    k = top_k or settings.top_k
+def _search_context_dense_only(query: str, k: int) -> List[Dict[str, Any]]:
     store = load_index()
     docs = store.similarity_search(query=query, k=k)
+    out: List[Dict[str, Any]] = []
+    for i, doc in enumerate(docs, start=1):
+        meta = dict(doc.metadata or {})
+        meta["dense_rank"] = i
+        meta["retrieval_mode"] = "dense"
+        out.append({"content": doc.page_content, "metadata": meta})
+    return out
 
-    items: List[Dict[str, Any]] = []
-    for doc in docs:
-        items.append(
-            {
-                "content": doc.page_content,
-                "metadata": doc.metadata,
-            }
+
+def search_context(
+    query: str,
+    top_k: int | None = None,
+    *,
+    retrieval_mode: str | None = None,
+) -> List[Dict[str, Any]]:
+    """
+    retrieval_mode: None → follow ``HYBRID_ENABLED``; ``dense`` / ``hybrid`` force path.
+    """
+    k = top_k or settings.top_k
+    use_hybrid = settings.hybrid_enabled
+    if retrieval_mode == "dense":
+        use_hybrid = False
+    elif retrieval_mode == "hybrid":
+        use_hybrid = True
+
+    if use_hybrid:
+        candidate_k = max(k, k * settings.hybrid_candidate_multiplier)
+        return hybrid_search_rrf(
+            query,
+            k,
+            candidate_k=candidate_k,
+            dense_weight=settings.hybrid_dense_weight,
+            bm25_weight=settings.hybrid_keyword_weight,
+            rrf_k=settings.hybrid_rrf_k,
         )
-    return items
+    return _search_context_dense_only(query, k)
 
 
 def _contexts_with_citation_ids(contexts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -142,7 +168,6 @@ def _attach_metrics(
 
 
 def _extract_citations_used(answer: str, num_contexts: int) -> List[str]:
-    """Unique [C#] ids appearing in the answer, in order of first appearance."""
     seen: List[str] = []
     for m in _CITATION_PATTERN.finditer(answer):
         n = int(m.group(1))
@@ -161,7 +186,6 @@ def _citation_warnings(answer: str, num_contexts: int) -> List[str]:
         warnings.append(
             "The answer contains no [C#] citations; verify it against the retrieved snippets."
         )
-    # Flag citations that do not exist in this retrieval set
     for m in _CITATION_PATTERN.finditer(answer):
         n = int(m.group(1))
         if n < 1 or n > num_contexts:
@@ -171,10 +195,15 @@ def _citation_warnings(answer: str, num_contexts: int) -> List[str]:
     return warnings
 
 
-def build_answer(query: str, top_k: int | None = None) -> Dict[str, Any]:
+def build_answer(
+    query: str,
+    top_k: int | None = None,
+    *,
+    retrieval_mode: str | None = None,
+) -> Dict[str, Any]:
     t0 = time.perf_counter()
     t_search0 = time.perf_counter()
-    raw_contexts = search_context(query, top_k)
+    raw_contexts = search_context(query, top_k, retrieval_mode=retrieval_mode)
     retrieval_ms = (time.perf_counter() - t_search0) * 1000
 
     if not raw_contexts:

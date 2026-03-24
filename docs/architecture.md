@@ -8,7 +8,7 @@
    - **Phase 3:** Polls `GET /ingest/status/{job_id}` after `POST /ingest/job` for non-blocking ingest UX.
 
 2. **API Service (FastAPI)**
-   - Exposes `/ingest` (sync), **`/ingest/job`** (async queue), **`/ingest/status/{id}`**, **`/ingest/jobs`**, `/query`, `/health`.
+   - Exposes `/ingest` (sync), **`/ingest/job`** (async queue), **`/ingest/status/{id}`**, **`/ingest/jobs`**, `/query` (optional `retrieval_mode`), `/health`.
    - Coordinates ingestion and retrieval workflows.
    - **Single-writer rule:** FAISS index save replaces the on-disk store; ingestion jobs are **serialized** per API process (one background worker thread draining a queue).
 
@@ -16,7 +16,12 @@
    - Generates embeddings via local sentence-transformer model.
    - Stores vector index on disk for fast similarity search.
 
-4. **Document Store (Filesystem / object store in future)**
+4. **Lexical index (Phase 4)**
+   - **BM25** over all chunks in the FAISS docstore (cached; **invalidated on ingest**).
+   - Fused with dense hits via **Reciprocal Rank Fusion (RRF)** — no score normalization across retrievers.
+   - **Scale-out:** materialize BM25 (e.g. OpenSearch/Elasticsearch) or a shared lexical service; keep the same ranked-list fusion contract at the API boundary.
+
+5. **Document Store (Filesystem / object store in future)**
    - Holds RFC/manual source files.
 
 ## Phase 3 — Ingestion jobs (implemented)
@@ -41,6 +46,7 @@
 
 - **V2:** LLM-grounded answers + citations *(done)*.
 - **V3:** Background ingestion queue and status tracking *(done — in-memory; externalize next)*.
-- **V4:** Add hybrid retrieval (BM25 + dense vectors).
-- **V5:** Add multi-tenant project spaces and auth.
-- **Differentiators:** job-based ingest, explicit single-writer semantics, documented path to Redis/workers, health `?detailed=1` for ops.
+- **V4:** Hybrid retrieval — **BM25 + dense + RRF** *(done)*; per-query `retrieval_mode` override.
+- **V5:** Eval harness + golden questions *(baseline `scripts/run_eval.py` + `docs/eval_questions.json`)*; expand groundedness checks.
+- **V6:** Multi-tenant project spaces and auth.
+- **Differentiators:** async ingest jobs, single-writer ingest semantics, hybrid retrieval with clear scale-out story, health `?detailed=1`.

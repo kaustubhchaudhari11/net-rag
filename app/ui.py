@@ -98,15 +98,29 @@ query = st.text_area(
     "Example: Explain TCP 3-way handshake and what state transitions happen in each step."
 )
 top_k = st.slider("Top K Contexts", min_value=1, max_value=10, value=5)
+retrieval_pick = st.selectbox(
+    "Retrieval",
+    ["Default (from .env)", "Dense only", "Hybrid BM25 + dense"],
+    help="Hybrid fuses dense embeddings with BM25 lexical scores (RRF). Good for RFC numbers and exact terms.",
+)
+_retrieval_map = {
+    "Default (from .env)": None,
+    "Dense only": "dense",
+    "Hybrid BM25 + dense": "hybrid",
+}
+retrieval_mode = _retrieval_map[retrieval_pick]
 
 if st.button("Ask Net-RAG", type="primary"):
     if not query.strip():
         st.warning("Enter a query first.")
     else:
         with st.spinner("Retrieving context..."):
+            body: dict = {"query": query, "top_k": top_k}
+            if retrieval_mode is not None:
+                body["retrieval_mode"] = retrieval_mode
             resp = requests.post(
                 f"{API_BASE}/query",
-                json={"query": query, "top_k": top_k},
+                json=body,
                 timeout=120,
             )
             if resp.ok:
@@ -114,6 +128,11 @@ if st.button("Ask Net-RAG", type="primary"):
                 st.markdown("### Answer")
                 st.write(result["answer"])
                 st.caption(f"Mode: {result.get('mode', 'unknown')}")
+                ctxs = result.get("contexts") or []
+                if ctxs and ctxs[0].get("metadata"):
+                    st.caption(
+                        f"Retrieval path: `{ctxs[0]['metadata'].get('retrieval_mode', 'unknown')}`"
+                    )
                 if "latency_ms" in result:
                     cap_parts = [f"Total {result['latency_ms']} ms"]
                     if result.get("retrieval_ms") is not None:

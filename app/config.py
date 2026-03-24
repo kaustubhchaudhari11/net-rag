@@ -27,6 +27,16 @@ class Settings:
         "true",
         "yes",
     )
+    hybrid_enabled: bool = os.getenv("HYBRID_ENABLED", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    hybrid_candidate_multiplier: int = int(os.getenv("HYBRID_CANDIDATE_MULTIPLIER", "4"))
+    hybrid_dense_weight: float = float(os.getenv("HYBRID_DENSE_WEIGHT", "0.7"))
+    hybrid_keyword_weight: float = float(os.getenv("HYBRID_KEYWORD_WEIGHT", "0.3"))
+    # Reciprocal Rank Fusion constant k in score 1/(k+rank); common default 60.
+    hybrid_rrf_k: int = int(os.getenv("HYBRID_RRF_K", "60"))
 
 
 settings = Settings()

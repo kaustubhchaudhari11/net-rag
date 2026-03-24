@@ -9,3 +9,4 @@ pypdf
 python-dotenv
 requests
 python-multipart
+rank-bm25

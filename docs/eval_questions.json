@@ -1,0 +1,35 @@
+{
+  "description": "Lightweight eval set for Net-RAG /query. Ingest networking corpus first; optional expected_substrings are heuristic checks only.",
+  "questions": [
+    {
+      "id": "tcp_handshake",
+      "text": "Describe the TCP three-way handshake and the purpose of each segment.",
+      "expected_substrings": ["SYN"],
+      "notes": "Stronger with RFC 793 or TCP tutorial in corpus."
+    },
+    {
+      "id": "bgp_vs_ospf",
+      "text": "In one paragraph, contrast BGP route advertisement with link-state flooding.",
+      "expected_substrings": [],
+      "notes": "Open question; use manual review or LLM-as-judge later."
+    },
+    {
+      "id": "ipv6_header",
+      "text": "What fields does an IPv6 base header contain compared to IPv4?",
+      "expected_substrings": [],
+      "notes": "Good for hybrid if corpus names IPv6 explicitly."
+    },
+    {
+      "id": "exact_acronym",
+      "text": "What does MPLS stand for and what problem does it address?",
+      "expected_substrings": ["MPLS"],
+      "notes": "Hybrid BM25 helps exact acronym retrieval."
+    },
+    {
+      "id": "routing_table",
+      "text": "What is a routing table and what does a longest-prefix match mean?",
+      "expected_substrings": [],
+      "notes": "Conceptual; dense retrieval often sufficient."
+    }
+  ]
+}

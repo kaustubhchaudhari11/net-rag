@@ -1,11 +1,11 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Literal, Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app.services.ingest_job_manager import IngestJob, JobState, get_ingest_job_manager
+from app.services.ingest_job_manager import IngestJob, get_ingest_job_manager
 from app.services.ingestion_service import ingest_documents
 from app.services.query_service import build_answer
 
@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Net-RAG API",
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
     description="Network protocol RAG: sync/async ingestion, grounded query. "
     "Run API with a single uvicorn worker if using in-memory ingest jobs, "
@@ -126,7 +126,11 @@ def ingest_jobs_list(limit: int = 20) -> dict:
 @app.post("/query")
 def query(payload: QueryRequest) -> dict:
     try:
-        result = build_answer(payload.query, payload.top_k)
+        result = build_answer(
+            payload.query,
+            payload.top_k,
+            retrieval_mode=payload.retrieval_mode,
+        )
         return {"ok": True, "result": result}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
