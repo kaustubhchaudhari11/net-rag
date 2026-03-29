@@ -3,7 +3,9 @@ import time
 
 import requests
 import streamlit as st
+from dotenv import load_dotenv
 
+load_dotenv()
 API_BASE = os.getenv("NETRAG_API_BASE", "http://127.0.0.1:8000")
 
 st.set_page_config(page_title="Net-RAG", layout="wide")
@@ -126,7 +128,7 @@ if st.button("Ask Net-RAG", type="primary"):
             if resp.ok:
                 result = resp.json()["result"]
                 st.markdown("### Answer")
-                st.write(result["answer"])
+                st.markdown(result["answer"])
                 st.caption(f"Mode: {result.get('mode', 'unknown')}")
                 ctxs = result.get("contexts") or []
                 if ctxs and ctxs[0].get("metadata"):

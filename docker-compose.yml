@@ -1,3 +1,6 @@
+# App code is copied into the image at build time (see Dockerfile.api).
+# If /health does not show service "net-rag-api-manual-json-v1", rebuild after editing Python:
+#   docker compose build netrag-api && docker compose up -d
 services:
   netrag-api:
     build:

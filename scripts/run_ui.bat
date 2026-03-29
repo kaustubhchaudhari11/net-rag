@@ -6,7 +6,8 @@ if not exist ".venv\Scripts\python.exe" (
   pause
   exit /b 1
 )
-echo Starting Streamlit UI ^(ensure API is running in another window^)
+set NETRAG_API_BASE=http://127.0.0.1:8000
+echo Starting Streamlit UI — API should be on %NETRAG_API_BASE%
 echo Open http://localhost:8501 in your browser
 ".venv\Scripts\python.exe" -m streamlit run app/ui.py
 pause

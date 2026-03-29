@@ -71,10 +71,26 @@ def _contexts_with_citation_ids(contexts: List[Dict[str, Any]]) -> List[Dict[str
 def _fallback_answer(query: str, contexts: List[Dict[str, Any]]) -> str:
     if not contexts:
         return "No context found. Please ingest documents first."
-    return (
-        "Retrieved relevant protocol documentation snippets for your query. "
-        "Set LLM_MODEL and LLM_API_KEY in .env to enable grounded synthesized answers with citations."
+    lines: List[str] = [
+        "**Retrieval-only answer** — excerpts from your top retrieved snippets (no LLM). "
+        "Set **LLM_MODEL** and **LLM_API_KEY** in `.env` for one synthesized reply with `[C#]` citations.",
+        "",
+    ]
+    max_per_chunk = 900
+    max_chunks = 4
+    for item in contexts[:max_chunks]:
+        meta = item.get("metadata") or {}
+        cid = meta.get("citation_id", "?")
+        src = meta.get("source_file", "unknown")
+        text = (item.get("content") or "").strip()
+        if not text:
+            continue
+        excerpt = text if len(text) <= max_per_chunk else text[: max_per_chunk - 1] + "…"
+        lines.append(f"**[{cid}] {src}**\n\n{excerpt}\n")
+    lines.append(
+        "\n---\n*Expand “Retrieved Context” below for full chunks, or ingest RFC 793 for deeper TCP state detail.*"
     )
+    return "\n".join(lines)
 
 
 def _llm_enabled() -> bool:

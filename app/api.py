@@ -1,13 +1,17 @@
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, List, Literal, Optional
+from typing import Any, List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from app.services.ingest_job_manager import IngestJob, get_ingest_job_manager
 from app.services.ingestion_service import ingest_documents
 from app.services.query_service import build_answer
+
+_logger = logging.getLogger("uvicorn.error")
 
 
 def _job_to_dict(j: IngestJob) -> dict[str, Any]:
@@ -31,6 +35,10 @@ def _job_to_dict(j: IngestJob) -> dict[str, Any]:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Start background ingest worker; stop gracefully on shutdown."""
+    _logger.warning(
+        "Net-RAG app.api loaded from %s (query_handler=manual_json_body_v1)",
+        Path(__file__).resolve(),
+    )
     mgr = get_ingest_job_manager()
     mgr.start_worker()
     yield
@@ -51,19 +59,26 @@ class IngestRequest(BaseModel):
     input_dir: str = Field(..., description="Directory path with PDF/TXT/MD files")
 
 
-class QueryRequest(BaseModel):
-    query: str
-    top_k: int | None = None
-
-
 class IngestJobSubmitResponse(BaseModel):
     job_id: str
     status_url: str
 
 
+@app.get("/")
+def root() -> RedirectResponse:
+    """``/`` has no HTML UI; API docs live at ``/docs``. Chat UI: Streamlit on port 8501."""
+    return RedirectResponse(url="/docs")
+
+
 @app.get("/health")
 def health(detailed: bool = False) -> dict:
-    out: dict = {"status": "ok", "service": "net-rag-api"}
+    out: dict = {
+        "status": "ok",
+        # Distinct value: if you do not see this exact string, port 8000 is NOT this codebase.
+        "service": "net-rag-api-manual-json-v1",
+        "api_file": str(Path(__file__).resolve()),
+        "query_handler": "manual_json_body_v1",
+    }
     if detailed:
         mgr = get_ingest_job_manager()
         out["ingest_jobs"] = {
@@ -124,13 +139,37 @@ def ingest_jobs_list(limit: int = 20) -> dict:
 
 
 @app.post("/query")
-def query(payload: QueryRequest) -> dict:
+async def query(request: Request) -> dict:
+    """
+    Parse JSON manually so a stale/reloaded worker never hits ``QueryRequest.retrieval_mode``
+    mismatches. Body: ``query`` (str), optional ``top_k`` (int), optional ``retrieval_mode`` (dense|hybrid).
+    """
     try:
-        result = build_answer(
-            payload.query,
-            payload.top_k,
-            retrieval_mode=payload.retrieval_mode,
+        body = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}") from exc
+
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON body must be an object")
+
+    q = body.get("query")
+    if not isinstance(q, str) or not q.strip():
+        raise HTTPException(status_code=400, detail="Field 'query' is required (non-empty string)")
+
+    top_k = body.get("top_k")
+    if top_k is not None:
+        if not isinstance(top_k, int) or isinstance(top_k, bool):
+            raise HTTPException(status_code=400, detail="Field 'top_k' must be an integer or omitted")
+
+    mode = body.get("retrieval_mode")
+    if mode is not None and mode not in ("dense", "hybrid"):
+        raise HTTPException(
+            status_code=400,
+            detail="Field 'retrieval_mode' must be 'dense', 'hybrid', or omitted",
         )
+
+    try:
+        result = build_answer(q.strip(), top_k, retrieval_mode=mode)
         return {"ok": True, "result": result}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

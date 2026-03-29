@@ -1,35 +1,67 @@
 {
-  "description": "Lightweight eval set for Net-RAG /query. Ingest networking corpus first; optional expected_substrings are heuristic checks only.",
+  "dataset_version": "2",
+  "description": "Gold eval set for Net-RAG. Ingest ONLY docs/eval_corpus (three .md fixtures) so source_file and substring checks are deterministic.",
+  "prerequisites": "POST /ingest with input_dir pointing to docs/eval_corpus (path as seen by API process).",
   "questions": [
     {
-      "id": "tcp_handshake",
-      "text": "Describe the TCP three-way handshake and the purpose of each segment.",
-      "expected_substrings": ["SYN"],
-      "notes": "Stronger with RFC 793 or TCP tutorial in corpus."
+      "id": "gold_tcp_three_way",
+      "tier": "gold",
+      "text": "Explain the TCP three-way handshake using SYN and ACK.",
+      "expected_source_files": ["tcp_synopsis.md"],
+      "must_appear_in_contexts": ["syn", "ack", "three-way"],
+      "must_appear_in_answer": [],
+      "require_citation_in_answer": false,
+      "notes": "Retrieval must surface tcp_synopsis.md; contexts must contain handshake terms."
     },
     {
-      "id": "bgp_vs_ospf",
-      "text": "In one paragraph, contrast BGP route advertisement with link-state flooding.",
-      "expected_substrings": [],
-      "notes": "Open question; use manual review or LLM-as-judge later."
+      "id": "gold_bgp_path_vector",
+      "tier": "gold",
+      "text": "What kind of protocol is BGP and what does it advertise?",
+      "expected_source_files": ["routing_protocols.md"],
+      "must_appear_in_contexts": ["bgp", "path"],
+      "must_appear_in_answer": [],
+      "require_citation_in_answer": false,
+      "notes": "Exact token 'path' appears as path-vector in fixture."
     },
     {
-      "id": "ipv6_header",
-      "text": "What fields does an IPv6 base header contain compared to IPv4?",
-      "expected_substrings": [],
-      "notes": "Good for hybrid if corpus names IPv6 explicitly."
+      "id": "gold_ospf_link_state",
+      "tier": "gold",
+      "text": "How does OSPF distribute topology information?",
+      "expected_source_files": ["routing_protocols.md"],
+      "must_appear_in_contexts": ["ospf", "flood"],
+      "must_appear_in_answer": [],
+      "require_citation_in_answer": false,
+      "notes": "'floods' in corpus → substring 'flood' matches."
     },
     {
-      "id": "exact_acronym",
-      "text": "What does MPLS stand for and what problem does it address?",
-      "expected_substrings": ["MPLS"],
-      "notes": "Hybrid BM25 helps exact acronym retrieval."
+      "id": "gold_ipv6_header_size",
+      "tier": "gold",
+      "text": "How long is the IPv6 base header in octets?",
+      "expected_source_files": ["ipv6_basics.md"],
+      "must_appear_in_contexts": ["40", "octet"],
+      "must_appear_in_answer": [],
+      "require_citation_in_answer": false,
+      "notes": "Numeric and 'octets' in fixture."
     },
     {
-      "id": "routing_table",
-      "text": "What is a routing table and what does a longest-prefix match mean?",
-      "expected_substrings": [],
-      "notes": "Conceptual; dense retrieval often sufficient."
+      "id": "gold_ipv6_flow_label",
+      "tier": "gold",
+      "text": "Name one field in the IPv6 base header besides addresses.",
+      "expected_source_files": ["ipv6_basics.md"],
+      "must_appear_in_contexts": ["flow label", "next header"],
+      "must_appear_in_answer": [],
+      "require_citation_in_answer": false,
+      "notes": "Both phrases appear in fixture (case-insensitive match)."
+    },
+    {
+      "id": "gold_bgp_vs_ospf_contrast",
+      "tier": "gold",
+      "text": "Contrast BGP with OSPF in one sentence for an architecture review.",
+      "expected_source_files": ["routing_protocols.md"],
+      "must_appear_in_contexts": ["bgp", "ospf"],
+      "must_appear_in_answer": [],
+      "require_citation_in_answer": false,
+      "notes": "Single doc contains both protocols."
     }
   ]
 }
