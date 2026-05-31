@@ -1,264 +1,188 @@
----
-title: Net-RAG
-emoji: 🛰️
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-app_port: 7860
-pinned: false
-license: mit
----
-
 # Net-RAG: Network Protocol & Architecture Assistant
 
-Net-RAG is a Level-1 Retrieval-Augmented Generation project focused on networking and distributed systems documentation (RFCs, protocol manuals, architecture notes).
+**Repo:** https://github.com/kaustubhchaudhari11/net-rag
 
-It ingests technical docs, chunks them by structure, embeds them locally, and retrieves the most relevant context for user questions through a Streamlit app.
+![Net-RAG screenshot](docs/screenshot.png)
 
-**Living roadmap + tasks:** see [`docs/PROJECT_MEMORY.md`](docs/PROJECT_MEMORY.md) (objective, progress, upcoming phases).
+I built **Net-RAG**, a Retrieval-Augmented Generation (RAG) assistant for the documents that actually run the internet — RFCs, router/switch manuals, and network architecture guides. You point it at a pile of dense technical docs and ask plain-English questions like *"Explain the TCP three-way handshake"* or *"How does BGP route selection differ from OSPF?"*, and it answers using the **real text from those documents**, with citations you can click and verify.
 
-## 1) Why this project stands out
+I started this because I was tired of "chat with a PDF" demos that look great until you ask something specific and the model confidently makes it up. Networking is unforgiving — get an RFC number or a header field wrong and the answer is worse than useless. So I treated this as a serious engineering problem: how do you make retrieval precise enough for technical jargon, keep the model honest, and still ship it like a real service?
 
-- Domain is highly technical (network protocols + architecture).
-- Shows practical AI + systems engineering.
-- Built with service boundaries (UI + API + vector layer) so it is distributed-system ready.
-- Runs locally with low cost and can scale to cloud later.
+## What makes it different from a normal chatbot
 
-## Features
+A plain chatbot answers from its training memory and can't show you where anything came from. Net-RAG looks things up first, then answers only from what it found:
 
-- Ingests PDF, Markdown, and text files from RFCs and network manuals.
-- Chunks technical documents with structure-aware splitting.
-- Builds local semantic vector index with FAISS.
-- Exposes retrieval pipeline through FastAPI endpoints.
-- **Phase 3:** Async ingestion jobs (`POST /ingest/job` + status polling) with a serialized worker queue (swap backend to Redis/RQ later — see `docs/architecture.md`).
-- **Phase 4:** **BM25 + dense** retrieval fused with **RRF**; cached lexical index **invalidated on ingest**; optional `retrieval_mode` on `/query` and in Streamlit.
-- **Phase 5:** gold eval corpus (`docs/eval_corpus/`) + labeled `docs/eval_questions.json` + `scripts/run_eval.py` with deterministic metrics (`source_hit@k`, precision@k, MRR, context coverage).
-- **Phase 6:** one-command **Docker Compose** deploy with healthchecks, ordered startup (`depends_on: service_healthy`), persistent index volume, env-var config, and a demo-ready Streamlit UI. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
-- Provides interactive Q/A experience with Streamlit (health badge, example prompts, retrieval-path + latency/token chips, citation cards).
+- **Grounded answers with citations.** Every response is tied back to a source file and passage. If the documents don't cover the question, it says *"insufficient context"* instead of inventing an answer.
+- **Hybrid search (BM25 + dense).** Pure semantic search is weak at exact tokens like `RFC 4271`, `SYN-ACK`, or `Hop Limit`. I fuse keyword search with embeddings using Reciprocal Rank Fusion so both exact terms and paraphrased questions land correctly.
+- **Structure-aware chunking.** Docs are split by section/heading instead of blind fixed-size cuts, and each chunk keeps its page and section so citations are meaningful.
+- **Built like a service, not a script.** A FastAPI backend and a Streamlit UI talk over HTTP, with a background job queue for ingestion so embedding a big corpus never blocks the app.
 
-## 2) Tech stack
+To be clear about scope: this is a well-engineered RAG pipeline, **not** a multi-agent system. There's no autonomous planning or agent loop — just solid retrieval, grounding, and systems design, which is what production RAG actually needs.
 
-- **Backend API:** FastAPI
-- **RAG pipeline:** LangChain + FAISS
-- **Embeddings:** Sentence Transformers (`all-MiniLM-L6-v2`)
-- **UI:** Streamlit
-- **Docs parsing:** PyPDF + text/markdown loader
-- **Lexical:** `rank-bm25` (BM25 over all chunks in the FAISS docstore)
+## Tech Stack
 
-## 3) Project structure
+- **Language:** Python 3.11
+- **Backend API:** FastAPI + Uvicorn
+- **Frontend:** Streamlit
+- **RAG orchestration:** LangChain
+- **Vector store:** FAISS (local, on-disk)
+- **Embeddings:** HuggingFace Sentence Transformers (`all-MiniLM-L6-v2`) — runs locally on CPU, so it's free and private
+- **Lexical search:** `rank-bm25` (BM25 over the FAISS docstore), fused with dense results via RRF
+- **Document parsing:** PyPDF + Markdown/text loaders
+- **LLM (optional):** any OpenAI-compatible model for the final answer write-up; without a key it falls back to returning the retrieved passages
 
-```text
-net-rag/
-  app/
-    api.py
-    ui.py
-    config.py
-    rag/
-      chunker.py
-      embedder.py
-      vector_store.py
-      hybrid_retrieval.py
-    services/
-      ingestion_service.py
-      ingest_job_manager.py
-      query_service.py
-  scripts/
-    ingest.py
-    run_eval.py
-    run_local.ps1
-    run_ui.ps1
-    setup_local.bat
-    run_api.bat
-    run_ui.bat
-  docs/
-    architecture.md
-    WINDOWS_SETUP.md
-    PROJECT_MEMORY.md
-    eval_questions.json
-  sample_docs/
+## How it works
+
+```
+Documents → structure-aware chunking → embeddings → FAISS index
+                                                        │
+Question → hybrid retrieval (BM25 + dense, RRF) → top passages
+                                                        │
+                              grounded answer + citations  (LLM optional)
 ```
 
-## 4) Setup
+Ingestion runs as a background job so the API stays responsive, and FAISS writes go through a single worker to stay consistent.
 
-### Windows (recommended if `Activate.ps1` is blocked)
+## Run it locally
 
-Use **Command Prompt** (`cmd`). Full steps: [`docs/WINDOWS_SETUP.md`](docs/WINDOWS_SETUP.md).
+Works on Windows, macOS, and Linux. The repo already ships a few real RFCs in `sample_docs/`, so you can try it without downloading anything.
 
-1. One-time: `scripts\setup_local.bat` (creates `.venv`, installs deps, copies `.env` if missing).
-2. Put RFC/manual files inside `sample_docs/` (or another folder you ingest from).
+**1. Clone the repo**
 
-### All platforms — PowerShell / manual
+```bash
+git clone https://github.com/kaustubhchaudhari11/net-rag.git
+cd net-rag
+```
 
-1. Create and activate virtual environment:
+**2. Create a virtual environment**
 
-```powershell
-cd C:\Users\kaust\Documents\net-rag
+```bash
+# macOS / Linux
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Windows (PowerShell)
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-If PowerShell blocks scripts: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+If PowerShell blocks the activation script, run it without activating (see the commands in step 5), or use the helper scripts in `scripts/`.
 
-2. Install dependencies:
+**3. Install dependencies**
 
-```powershell
+```bash
 pip install -r requirements.txt
 ```
 
-3. Create `.env` from template:
+The first install pulls in PyTorch and the embedding model, so it takes a few minutes.
 
-```powershell
-copy .env.example .env
+**4. (Optional) Enable LLM-written answers**
+
+Copy the template and add a key if you want polished prose answers instead of raw passages:
+
+```bash
+cp .env.example .env       # Windows: copy .env.example .env
 ```
 
-4. Put RFC/manual files inside `sample_docs/`.
-
-## 5) Run locally (two terminals)
-
-### Windows — Command Prompt (no activation)
-
-**Window 1 — API:** `scripts\run_api.bat`  
-**Window 2 — UI:** `scripts\run_ui.bat`  
-
-(From repo root, or `cd /d C:\Users\kaust\Documents\net-rag` first.)
-
-### PowerShell — with venv activated
-
-**Terminal 1 — API**
-
-```powershell
-.\scripts\run_local.ps1
+```
+LLM_MODEL=gpt-4o-mini
+LLM_API_KEY=your_api_key
 ```
 
-**Terminal 2 — UI**
+Skip this and the app still works — it just returns the cited source passages directly.
 
-```powershell
-.\scripts\run_ui.ps1
+**5. Start the two services (two terminals)**
+
+```bash
+# Terminal 1 — API
+python -m uvicorn app.api:app --host 127.0.0.1 --port 8000
+
+# Terminal 2 — UI
+streamlit run app/ui.py
 ```
 
-### Any shell — without activating
+Open the UI at http://localhost:8501 (API docs live at http://localhost:8000/docs). In the sidebar, click **Update knowledge base** to index the documents, then ask away.
 
-```bat
-.venv\Scripts\python.exe -m uvicorn app.api:app --reload --host 127.0.0.1 --port 8000
-```
+**Or just use Docker:**
 
-```bat
-.venv\Scripts\python.exe -m streamlit run app/ui.py
-```
-
-- API health: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
-- Streamlit: [http://localhost:8501](http://localhost:8501)
-
-Use the sidebar in Streamlit to ingest documents (**background job** recommended), then ask protocol/architecture questions.
-
-### API quick reference (OpenAPI: `/docs`)
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/health` | Liveness; `?detailed=true` includes ingest worker / queue depth |
-| POST | `/ingest` | Sync ingest (blocks until done) |
-| POST | `/ingest/job` | Queue background ingest → `{ job_id, status_url }` |
-| GET | `/ingest/status/{job_id}` | `queued` / `running` / `succeeded` / `failed` + progress |
-| GET | `/ingest/jobs?limit=20` | Recent jobs (ephemeral, in-memory) |
-| POST | `/query` | Body: `query`, optional `top_k`, optional `retrieval_mode` (`dense` \| `hybrid`) |
-
-**Scaling note:** Use **one uvicorn worker** per API instance for the default in-memory job store, or externalize jobs to Redis/workers (see `docs/architecture.md`).
-
-**Docker:** Paths must exist **on the API container** (e.g. `/app/sample_docs` when using compose volumes).
-
-### Run with Docker (Phase 6 — one command)
-
-```powershell
+```bash
 docker compose up --build
 ```
 
-- UI: `http://localhost:8501`
-- API: `http://localhost:8000/health` (Swagger at `/docs`)
+This brings up both services with healthchecks; the UI waits for the API before starting.
 
-The UI starts only after the API passes its healthcheck. The FAISS index persists in the
-`netrag-data` volume across restarts. For grounded LLM answers, copy `.env.example` to
-`.env` and set `LLM_MODEL` + `LLM_API_KEY` (Compose auto-loads it). Full guide and cloud
-options: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Launch/LinkedIn kit: [`docs/PITCH.md`](docs/PITCH.md).
+## Where to get more documents
 
-## 6) Example questions
+Drop any PDF, `.md`, or `.txt` into `sample_docs/` and re-index. Networking RFCs are the best fit — they're free and text-based:
 
-- "Explain the TCP 3-way handshake and state transitions."
-- "How does BGP update propagation differ from OSPF flooding?"
-- "Summarize IPv6 header changes compared to IPv4."
-- "What are failure risks in this architecture and recommended mitigations?"
+- TCP — [RFC 793](https://www.rfc-editor.org/rfc/rfc793.txt)
+- BGP — [RFC 4271](https://www.rfc-editor.org/rfc/rfc4271.txt)
+- OSPF — [RFC 2328](https://www.rfc-editor.org/rfc/rfc2328.txt)
+- IPv6 — [RFC 8200](https://www.rfc-editor.org/rfc/rfc8200.txt)
 
-## 7) Resume bullets (customized)
+Vendor configuration guides (Cisco IOS, Juniper) and architecture PDFs work too.
 
-- Built a domain-specific RAG platform to analyze networking RFCs and infrastructure architecture manuals.
-- Designed a distributed-ready architecture with decoupled FastAPI retrieval service and Streamlit client.
-- Implemented local vector retrieval using LangChain + FAISS with CPU-optimized sentence-transformer embeddings.
-- Shipped **async ingestion jobs** with a **stable job/status API** and documented path to **Redis/RQ** for scale-out.
-- Added **hybrid BM25 + dense (RRF)** retrieval with **ingest-time cache invalidation** and a **small eval harness** for regression smoke tests.
-- Reduced operational cost by running fully local inference while maintaining fast semantic search over technical corpora.
+## Sample questions to ask
 
-## 8) Next upgrades to make it exceptional
+There's also a **Demo questions** tab in the UI with these ready to click:
 
-- ~~Add LLM answer synthesis with grounded citations.~~ **Phase 2 / 2.1 done** (see below).
-- ~~Add async ingestion workers and progress/status API.~~ **Phase 3 done** — job API + queue; evolve to Redis/RQ for multi-replica.
-- ~~Baseline eval questions + `run_eval.py`.~~ **Phase 5 done** — gold corpus + deterministic metrics (MRR, precision@k, context coverage).
-- ~~Deploy API + UI as separate services with healthchecks.~~ **Phase 6 done** — Docker Compose deploy + `docs/DEPLOYMENT.md` (local + cloud).
-- Stretch: Redis-backed ingest jobs, managed vector DB (Qdrant/pgvector), cross-encoder re-rank, query filter by source.
+- **TCP:** "Explain the TCP three-way handshake and the purpose of each segment."
+- **BGP:** "What is the role of the AS_PATH attribute in BGP?"
+- **OSPF:** "How does OSPF flood link-state advertisements within an area?"
+- **IPv6:** "How long is the IPv6 base header and what fields does it contain?"
+- **Comparison:** "How does BGP route selection differ from OSPF's shortest-path computation?"
+
+Ask something the docs don't cover (e.g. "How does QUIC handle congestion control?") to watch it say *insufficient context* instead of guessing.
+
+## Technical challenges and how I solved them
+
+A few real problems I hit while building this:
+
+**1. Dense search kept missing exact terms.** Embeddings are great at meaning but mediocre at literal tokens, so questions mentioning a specific RFC number or flag often retrieved the wrong section. I added a BM25 keyword index alongside the dense index and combined them with Reciprocal Rank Fusion. Now exact terms and fuzzy questions both work, and you can toggle the strategy per query.
+
+**2. The embedding model reloaded on every request.** Early on, each query was slow because the sentence-transformer weights were being loaded from scratch every time (I caught it in the logs — "Loading weights" on every call). I cached the model with `functools.lru_cache` so it loads once per process. Latency dropped immediately.
+
+**3. Ingesting a big corpus blocked everything.** Embedding hundreds of chunks is slow, and FAISS doesn't like concurrent writers. I moved ingestion to a background job queue with a single worker thread, plus a `/ingest/status` endpoint and a live progress bar in the UI. The API stays responsive and writes stay consistent.
+
+**4. Keeping the model honest.** I constrained answers to the retrieved passages, made every claim cite its source, and added an explicit "insufficient context" path so it won't fabricate when the corpus comes up short.
+
+**5. Windows dev friction.** `Activate.ps1` is blocked on a lot of Windows setups, and shell scripts kept getting CRLF line endings that break on Linux. I added `.bat` helpers for Windows and a `.gitattributes` rule to force LF on scripts so the containerized version actually runs.
+
+## API reference
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET`  | `/health` | Liveness; `?detailed=true` adds ingest worker / queue depth |
+| `POST` | `/ingest` | Synchronous ingest (blocks until done) |
+| `POST` | `/ingest/job` | Queue a background ingest → `{ job_id, status_url }` |
+| `GET`  | `/ingest/status/{job_id}` | Job state + progress |
+| `POST` | `/query` | Body: `query`, optional `top_k`, optional `retrieval_mode` (`dense` \| `hybrid`) |
+
+Full interactive docs at `/docs` when the API is running.
+
+## Project structure
+
+```
+net-rag/
+  app/
+    api.py                 # FastAPI routes
+    ui.py                  # Streamlit app
+    config.py              # env-driven settings
+    rag/                   # chunker, embedder, vector store, hybrid retrieval
+    services/              # ingestion, background jobs, query/answer logic
+  scripts/                 # run/setup helpers, evaluation
+  docs/                    # architecture notes, eval corpus, deployment
+  sample_docs/             # RFCs to index out of the box
+  docker-compose.yml
+```
+
+## Future improvements
+
+- Externalize the ingest queue to Redis/RQ so the API can run as multiple replicas.
+- Swap FAISS for a managed vector DB (Qdrant or pgvector) behind the same retrieval interface.
+- Add a cross-encoder re-ranker for an extra precision bump on close calls.
+- Let users filter answers by a specific source document.
 
 ## License
 
-MIT (you can replace this with your preferred license).
-
-## Phase 2: Grounded LLM Answers
-
-The query pipeline now supports optional grounded LLM synthesis on top of retrieved chunks.
-
-1. Configure `.env`:
-
-```powershell
-LLM_MODEL=gpt-4o-mini
-LLM_API_KEY=your_api_key
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_TIMEOUT_SEC=60
-```
-
-2. Behavior:
-
-- If `LLM_MODEL` + `LLM_API_KEY` are set, `/query` returns an LLM-generated answer constrained to retrieved contexts with inline citations (`[C1]`, `[C2]`, ...).
-- If not set (or LLM call fails), Net-RAG falls back to retrieval-only mode and still returns cited contexts.
-
-### Phase 2.1 (complete): trust, metrics, chunk metadata
-
-- **Chunk metadata:** PDF **page** (from loaders) is normalized and stored; **section_hint** is inferred from Markdown headings (`# …`) at the start of each chunk. **Re-run ingestion** after upgrading so existing FAISS indexes pick up `section_hint`.
-- **`/query` response:** always includes **`latency_ms`** (end-to-end). When `INCLUDE_DEV_METRICS=true` (default in `.env.example`), also **`retrieval_ms`**, **`llm_ms`** (if an LLM call was attempted), and **`llm_usage`** (`prompt_tokens`, `completion_tokens`, `total_tokens`) when the provider returns them.
-- **UI:** shows timing captions, token line when present, and context expanders include page / section when available.
-Set `INCLUDE_DEV_METRICS=false` to hide breakdown and token counts (total `latency_ms` is still returned).
-
-## Phase 4: Hybrid retrieval (BM25 + dense + RRF)
-
-1. Install deps (`rank-bm25` is in `requirements.txt`):
-
-```powershell
-pip install -r requirements.txt
-```
-
-2. Configure `.env` (see `.env.example`):
-
-- `HYBRID_ENABLED` — default on; set `false` for dense-only unless the client sends `retrieval_mode: hybrid`.
-- `HYBRID_CANDIDATE_MULTIPLIER` — pool size per channel before fusion (e.g. `4` × `top_k`).
-- `HYBRID_DENSE_WEIGHT` / `HYBRID_KEYWORD_WEIGHT` — RRF weights (should sum to `1.0` for interpretability).
-- `HYBRID_RRF_K` — RRF rank constant (commonly `60`).
-
-3. **Per-request override:** `POST /query` JSON may include `"retrieval_mode": "dense"` or `"hybrid"`.
-
-4. **Cache:** BM25 is rebuilt when the vector index changes (invalidated automatically after ingest).
-
-## Phase 5: quick eval script
-
-Run a lightweight evaluation set against `/query`:
-
-```powershell
-.venv\Scripts\python.exe scripts/run_eval.py
-.venv\Scripts\python.exe scripts/run_eval.py --retrieval-mode hybrid
-```
-
-The script prints per-question latency, context count, answer mode, retrieval path, and optional **expected substring** misses from `docs/eval_questions.json`.
+MIT.
