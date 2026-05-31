@@ -53,6 +53,36 @@ Windows without `Activate.ps1`: see `docs/WINDOWS_SETUP.md` (`scripts\run_api.ba
 
 ---
 
+## C0) Hugging Face Spaces — free public URL (recommended for the demo link)
+
+Free Spaces give ~16 GB RAM (enough for PyTorch), one permanent URL, and deploy
+straight from the root `Dockerfile`, which runs API + UI in one container and
+ingests a demo corpus on boot (`scripts/hf_spaces_start.sh`).
+
+1. Create a free account at huggingface.co, then **New → Space**:
+   - SDK: **Docker** → **Blank**
+   - Name it `net-rag`.
+2. Get a write token: huggingface.co → Settings → **Access Tokens** → New token (role: *write*).
+3. Push this repo to the Space (run from the project root):
+
+```bash
+git remote add space https://huggingface.co/spaces/<your-hf-username>/net-rag
+git push space main
+# Username = your HF username; Password = the write token from step 2.
+```
+
+4. The Space builds automatically. Your URL: `https://<your-hf-username>-net-rag.hf.space`
+
+Notes:
+- Boot ingests `./docs/eval_corpus` (tiny → fast, reliable cold starts). To demo
+  the full RFC corpus instead, set Space variable `INGEST_DIR=./sample_docs`
+  (Settings → Variables) — boots are slower but answers come from real RFCs.
+- For grounded LLM answers, add `LLM_MODEL` + `LLM_API_KEY` as **Space secrets**
+  (Settings → Secrets), never in the repo.
+- Free Spaces sleep after inactivity (~30 s cold start on next visit).
+
+---
+
 ## C) Cloud (split API + UI)
 
 The two services are already decoupled, so any container host works. General recipe:

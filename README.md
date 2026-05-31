@@ -1,3 +1,14 @@
+---
+title: Net-RAG
+emoji: 🛰️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+---
+
 # Net-RAG: Network Protocol & Architecture Assistant
 
 Net-RAG is a Level-1 Retrieval-Augmented Generation project focused on networking and distributed systems documentation (RFCs, protocol manuals, architecture notes).

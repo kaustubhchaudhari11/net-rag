@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 load_dotenv()
 API_BASE = os.getenv("NETRAG_API_BASE", "http://127.0.0.1:8000")
 REQUEST_TIMEOUT = int(os.getenv("NETRAG_UI_TIMEOUT", "180"))
+# Public/deployed mode hides owner-only ingestion controls (folder path, etc.).
+PUBLIC_MODE = os.getenv("NETRAG_PUBLIC_MODE", "0").strip().lower() in ("1", "true", "yes")
 
 st.set_page_config(
     page_title="Net-RAG",
@@ -62,45 +64,53 @@ else:
     st.markdown('<span class="status-dot">online</span>', unsafe_allow_html=True)
 
 
-# ---------------- Sidebar: documents + advanced ----------------
+# ---------------- Sidebar ----------------
 with st.sidebar:
     st.header("Knowledge base")
-    st.caption("Load the documents Net-RAG should answer from.")
-    ingest_path = st.text_input("Folder path", value="./sample_docs")
 
-    if st.button("Update knowledge base", use_container_width=True):
-        try:
-            resp = requests.post(
-                f"{API_BASE}/ingest/job", json={"input_dir": ingest_path}, timeout=60
-            )
-            if resp.ok:
-                st.session_state.ingest_job_id = resp.json()["job_id"]
-                st.rerun()
-            else:
-                st.error(resp.text)
-        except requests.RequestException as exc:
-            st.error(f"Backend unreachable: {exc}")
+    if PUBLIC_MODE:
+        # Deployed demo: documents are preloaded; hide owner-only ingest controls.
+        st.caption(
+            "Preloaded with core networking references (TCP, BGP, OSPF, IPv6). "
+            "Just ask a question on the right."
+        )
+    else:
+        st.caption("Load the documents Net-RAG should answer from.")
+        ingest_path = st.text_input("Folder path", value="./sample_docs")
 
-    if st.session_state.ingest_job_id:
-        jid = st.session_state.ingest_job_id
-        try:
-            sr = requests.get(f"{API_BASE}/ingest/status/{jid}", timeout=15)
-        except requests.RequestException:
-            sr = None
-        if sr is not None and sr.ok:
-            job = sr.json()["job"]
-            pct = float(job.get("progress_percent") or 0) / 100.0
-            st.progress(min(1.0, max(0.0, pct)), text=job.get("message", "Working..."))
-            state = job.get("state", "")
-            if state == "succeeded":
-                st.success("Knowledge base updated")
-                st.session_state.ingest_job_id = None
-            elif state == "failed":
-                st.error(job.get("error") or "Update failed")
-                st.session_state.ingest_job_id = None
-            elif state in ("queued", "running"):
-                time.sleep(0.8)
-                st.rerun()
+        if st.button("Update knowledge base", use_container_width=True):
+            try:
+                resp = requests.post(
+                    f"{API_BASE}/ingest/job", json={"input_dir": ingest_path}, timeout=60
+                )
+                if resp.ok:
+                    st.session_state.ingest_job_id = resp.json()["job_id"]
+                    st.rerun()
+                else:
+                    st.error(resp.text)
+            except requests.RequestException as exc:
+                st.error(f"Backend unreachable: {exc}")
+
+        if st.session_state.ingest_job_id:
+            jid = st.session_state.ingest_job_id
+            try:
+                sr = requests.get(f"{API_BASE}/ingest/status/{jid}", timeout=15)
+            except requests.RequestException:
+                sr = None
+            if sr is not None and sr.ok:
+                job = sr.json()["job"]
+                pct = float(job.get("progress_percent") or 0) / 100.0
+                st.progress(min(1.0, max(0.0, pct)), text=job.get("message", "Working..."))
+                state = job.get("state", "")
+                if state == "succeeded":
+                    st.success("Knowledge base updated")
+                    st.session_state.ingest_job_id = None
+                elif state == "failed":
+                    st.error(job.get("error") or "Update failed")
+                    st.session_state.ingest_job_id = None
+                elif state in ("queued", "running"):
+                    time.sleep(0.8)
+                    st.rerun()
 
     with st.expander("Advanced", expanded=False):
         top_k = st.slider("Passages to retrieve", 1, 10, 5)

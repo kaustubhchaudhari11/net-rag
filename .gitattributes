@@ -1,0 +1,4 @@
+# Shell scripts must use LF so they run on Linux (e.g. Hugging Face Spaces).
+*.sh text eol=lf
+Dockerfile text eol=lf
+Dockerfile.* text eol=lf
