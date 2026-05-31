@@ -174,7 +174,3 @@ net-rag/
 - Swap FAISS for a managed vector DB (Qdrant or pgvector) behind the same retrieval interface.
 - Add a cross-encoder re-ranker for an extra precision bump on close calls.
 - Let users filter answers by a specific source document.
-
-## License
-
-MIT.
