@@ -1,5 +1,5 @@
 """
-Deterministic Phase 5 metrics (no LLM-as-judge).
+Deterministic retrieval metrics (no LLM-as-judge).
 
 Definitions:
 - source_hit@k: at least one retrieved chunk has metadata.source_file in expected_source_files.

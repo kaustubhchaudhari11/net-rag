@@ -1,5 +1,5 @@
 """
-Phase 4 — Hybrid retrieval: dense (FAISS) + lexical (BM25) with Reciprocal Rank Fusion.
+Hybrid retrieval: dense (FAISS) + lexical (BM25) with Reciprocal Rank Fusion.
 
 BM25 excels at exact tokens (RFC numbers, acronyms, field names); dense embeddings
 catch paraphrases. RRF merges ranked lists without score calibration.

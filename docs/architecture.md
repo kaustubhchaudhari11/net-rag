@@ -5,7 +5,7 @@
 1. **UI Service (Streamlit)**
    - Handles user interaction.
    - Sends ingestion and query requests to API service.
-   - **Phase 3:** Polls `GET /ingest/status/{job_id}` after `POST /ingest/job` for non-blocking ingest UX.
+   - Polls `GET /ingest/status/{job_id}` after `POST /ingest/job` for non-blocking ingest UX.
 
 2. **API Service (FastAPI)**
    - Exposes `/ingest` (sync), **`/ingest/job`** (async queue), **`/ingest/status/{id}`**, **`/ingest/jobs`**, `/query` (optional `retrieval_mode`), `/health`.
@@ -16,7 +16,7 @@
    - Generates embeddings via local sentence-transformer model.
    - Stores vector index on disk for fast similarity search.
 
-4. **Lexical index (Phase 4)**
+4. **Lexical index**
    - **BM25** over all chunks in the FAISS docstore (cached; **invalidated on ingest**).
    - Fused with dense hits via **Reciprocal Rank Fusion (RRF)** — no score normalization across retrievers.
    - **Scale-out:** materialize BM25 (e.g. OpenSearch/Elasticsearch) or a shared lexical service; keep the same ranked-list fusion contract at the API boundary.
@@ -24,9 +24,9 @@
 5. **Document Store (Filesystem / object store in future)**
    - Holds RFC/manual source files.
 
-## Phase 3 — Ingestion jobs (implemented)
+## Ingestion jobs
 
-| Concern | Current (MVP) | Scale-out direction |
+| Concern | Current | Scale-out direction |
 |--------|----------------|---------------------|
 | Job state | In-memory dict + `threading` queue | **Redis** + **RQ** / **Celery** / **Temporal** |
 | API replicas | One uvicorn worker recommended | Sticky sessions or shared job store; **dedicated ingest workers** |
@@ -42,11 +42,10 @@
 - FAISS layer can later be swapped with managed vector DB (Qdrant/Pinecone/Weaviate) with minimal API changes.
 - **Ingestion is already modeled as asynchronous work** (job id + status), matching how real systems offload heavy I/O and embedding to workers.
 
-## Evolution Path for Resume Impact
+## Future directions
 
-- **V2:** LLM-grounded answers + citations *(done)*.
-- **V3:** Background ingestion queue and status tracking *(done — in-memory; externalize next)*.
-- **V4:** Hybrid retrieval — **BM25 + dense + RRF** *(done)*; per-query `retrieval_mode` override.
-- **V5:** Eval harness + golden questions *(baseline `scripts/run_eval.py` + `docs/eval_questions.json`)*; expand groundedness checks.
-- **V6:** Multi-tenant project spaces and auth.
-- **Differentiators:** async ingest jobs, single-writer ingest semantics, hybrid retrieval with clear scale-out story, health `?detailed=1`.
+- Externalize the ingestion queue (Redis + RQ/Celery) so the API can run as multiple replicas with dedicated ingest workers.
+- Swap the local FAISS index for a managed vector DB (Qdrant/Weaviate/pgvector) behind the same retrieval interface.
+- Materialize BM25 in a dedicated lexical service (OpenSearch/Elasticsearch) while keeping the RRF fusion contract.
+- Add per-source filtering and a cross-encoder re-ranker for closer precision.
+- Multi-tenant project spaces and auth.

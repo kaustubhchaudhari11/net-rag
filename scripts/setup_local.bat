@@ -28,10 +28,10 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 echo.
-echo Upgrading pip and installing requirements...
+echo Upgrading pip and installing dependencies...
 ".venv\Scripts\python.exe" -m pip install --upgrade pip
 if errorlevel 1 goto :fail
-".venv\Scripts\python.exe" -m pip install -r requirements.txt
+".venv\Scripts\python.exe" -m pip install streamlit fastapi "uvicorn[standard]" langchain langchain-community faiss-cpu sentence-transformers pypdf python-dotenv requests python-multipart rank-bm25
 if errorlevel 1 goto :fail
 
 if not exist ".env" (

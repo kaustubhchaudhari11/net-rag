@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phase 5 — rigorous eval: gold questions + deterministic retrieval metrics.
+Evaluation: gold questions + deterministic retrieval metrics.
 
 Prerequisite: ingest docs/eval_corpus (path as seen by API), then run with API up.
 
@@ -39,7 +39,7 @@ def _load_questions(path: Path) -> Dict[str, Any]:
 
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
-    parser = argparse.ArgumentParser(description="Net-RAG Phase 5 eval (gold retrieval metrics)")
+    parser = argparse.ArgumentParser(description="Net-RAG evaluation (gold retrieval metrics)")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     parser.add_argument(
         "--questions",

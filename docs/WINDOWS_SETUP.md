@@ -16,7 +16,7 @@ cd /d C:\Users\kaust\Documents\net-rag
 scripts\setup_local.bat
 ```
 
-This creates `.venv`, installs `requirements.txt`, and copies `.env.example` → `.env` if `.env` does not exist.
+This creates `.venv`, installs the dependencies, and copies `.env.example` → `.env` if `.env` does not exist.
 
 **Python not found?** Install Python 3.10+ from [python.org](https://www.python.org/downloads/) and enable **Add python.exe to PATH**, then open a new `cmd` and run the commands again.
 
@@ -40,7 +40,7 @@ API health: **http://127.0.0.1:8000/health**
 cd /d C:\Users\kaust\Documents\net-rag
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install --upgrade pip
-.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m pip install streamlit fastapi "uvicorn[standard]" langchain langchain-community faiss-cpu sentence-transformers pypdf python-dotenv requests python-multipart rank-bm25
 copy /Y .env.example .env
 ```
 

@@ -71,7 +71,8 @@ If PowerShell blocks the activation script, run it without activating (see the c
 **3. Install dependencies**
 
 ```bash
-pip install -r requirements.txt
+pip install streamlit fastapi "uvicorn[standard]" langchain langchain-community \
+  faiss-cpu sentence-transformers pypdf python-dotenv requests python-multipart rank-bm25
 ```
 
 The first install pulls in PyTorch and the embedding model, so it takes a few minutes.
@@ -165,7 +166,6 @@ net-rag/
   scripts/                 # run/setup helpers, evaluation
   docs/                    # architecture notes, eval corpus
   sample_docs/             # RFCs to index out of the box
-  requirements.txt
 ```
 
 ## Future improvements

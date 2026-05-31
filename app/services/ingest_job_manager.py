@@ -1,5 +1,5 @@
 """
-Background ingestion jobs — Phase 3.
+Background ingestion jobs.
 
 Design goals for scalability / distributed evolution:
 - **API contract** (`POST /ingest/job`, `GET /ingest/status/{id}`) stays stable when you swap the backend.
@@ -8,7 +8,7 @@ Design goals for scalability / distributed evolution:
   one writer per vector store partition or use mergeable indices.
 - **State is ephemeral** in RAM today; move to Redis/Postgres for multi-instance API replicas.
 
-See docs/architecture.md → "Phase 3 ingestion jobs".
+See docs/architecture.md for the ingestion-job design notes.
 """
 
 from __future__ import annotations
