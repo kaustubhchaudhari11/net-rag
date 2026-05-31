@@ -103,14 +103,6 @@ streamlit run app/ui.py
 
 Open the UI at http://localhost:8501 (API docs live at http://localhost:8000/docs). In the sidebar, click **Update knowledge base** to index the documents, then ask away.
 
-**Or just use Docker:**
-
-```bash
-docker compose up --build
-```
-
-This brings up both services with healthchecks; the UI waits for the API before starting.
-
 ## Where to get more documents
 
 Drop any PDF, `.md`, or `.txt` into `sample_docs/` and re-index. Networking RFCs are the best fit — they're free and text-based:
@@ -146,7 +138,7 @@ A few real problems I hit while building this:
 
 **4. Keeping the model honest.** I constrained answers to the retrieved passages, made every claim cite its source, and added an explicit "insufficient context" path so it won't fabricate when the corpus comes up short.
 
-**5. Windows dev friction.** `Activate.ps1` is blocked on a lot of Windows setups, and shell scripts kept getting CRLF line endings that break on Linux. I added `.bat` helpers for Windows and a `.gitattributes` rule to force LF on scripts so the containerized version actually runs.
+**5. Windows dev friction.** `Activate.ps1` is blocked on a lot of Windows setups, so getting the app running took some trial and error. I added simple `.bat` helper scripts and documented a no-activation way to run the API and UI directly, which made setup painless across machines.
 
 ## API reference
 
@@ -171,9 +163,9 @@ net-rag/
     rag/                   # chunker, embedder, vector store, hybrid retrieval
     services/              # ingestion, background jobs, query/answer logic
   scripts/                 # run/setup helpers, evaluation
-  docs/                    # architecture notes, eval corpus, deployment
+  docs/                    # architecture notes, eval corpus
   sample_docs/             # RFCs to index out of the box
-  docker-compose.yml
+  requirements.txt
 ```
 
 ## Future improvements
