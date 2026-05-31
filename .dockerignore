@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.env
+.streamlit/
+app/data/vector_db/
+*.log
+.DS_Store
+Thumbs.db
+tests/
+eval_report.json
+**/__pycache__/

@@ -35,19 +35,18 @@ def _job_to_dict(j: IngestJob) -> dict[str, Any]:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Start background ingest worker; stop gracefully on shutdown."""
-    _logger.warning(
-        "Net-RAG app.api loaded from %s (query_handler=manual_json_body_v1)",
-        Path(__file__).resolve(),
-    )
+    _logger.info("Net-RAG API %s starting; ingest worker online", API_VERSION)
     mgr = get_ingest_job_manager()
     mgr.start_worker()
     yield
     mgr.stop_worker()
 
 
+API_VERSION = "1.0.0"
+
 app = FastAPI(
     title="Net-RAG API",
-    version="0.3.0",
+    version=API_VERSION,
     lifespan=lifespan,
     description="Network protocol RAG: sync/async ingestion, grounded query. "
     "Run API with a single uvicorn worker if using in-memory ingest jobs, "
@@ -74,10 +73,8 @@ def root() -> RedirectResponse:
 def health(detailed: bool = False) -> dict:
     out: dict = {
         "status": "ok",
-        # Distinct value: if you do not see this exact string, port 8000 is NOT this codebase.
-        "service": "net-rag-api-manual-json-v1",
-        "api_file": str(Path(__file__).resolve()),
-        "query_handler": "manual_json_body_v1",
+        "service": "net-rag-api",
+        "version": API_VERSION,
     }
     if detailed:
         mgr = get_ingest_job_manager()

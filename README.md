@@ -21,9 +21,9 @@ It ingests technical docs, chunks them by structure, embeds them locally, and re
 - Exposes retrieval pipeline through FastAPI endpoints.
 - **Phase 3:** Async ingestion jobs (`POST /ingest/job` + status polling) with a serialized worker queue (swap backend to Redis/RQ later — see `docs/architecture.md`).
 - **Phase 4:** **BM25 + dense** retrieval fused with **RRF**; cached lexical index **invalidated on ingest**; optional `retrieval_mode` on `/query` and in Streamlit.
-- **Phase 5:** `docs/eval_questions.json` + `scripts/run_eval.py` for smoke checks against a running API.
-- Provides interactive Q/A experience with Streamlit.
-- Includes Docker Compose for multi-service local deployment.
+- **Phase 5:** gold eval corpus (`docs/eval_corpus/`) + labeled `docs/eval_questions.json` + `scripts/run_eval.py` with deterministic metrics (`source_hit@k`, precision@k, MRR, context coverage).
+- **Phase 6:** one-command **Docker Compose** deploy with healthchecks, ordered startup (`depends_on: service_healthy`), persistent index volume, env-var config, and a demo-ready Streamlit UI. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+- Provides interactive Q/A experience with Streamlit (health badge, example prompts, retrieval-path + latency/token chips, citation cards).
 
 ## 2) Tech stack
 
@@ -155,14 +155,19 @@ Use the sidebar in Streamlit to ingest documents (**background job** recommended
 
 **Docker:** Paths must exist **on the API container** (e.g. `/app/sample_docs` when using compose volumes).
 
-### Run with Docker (distributed-style local setup)
+### Run with Docker (Phase 6 — one command)
 
 ```powershell
 docker compose up --build
 ```
 
 - UI: `http://localhost:8501`
-- API: `http://localhost:8000/health`
+- API: `http://localhost:8000/health` (Swagger at `/docs`)
+
+The UI starts only after the API passes its healthcheck. The FAISS index persists in the
+`netrag-data` volume across restarts. For grounded LLM answers, copy `.env.example` to
+`.env` and set `LLM_MODEL` + `LLM_API_KEY` (Compose auto-loads it). Full guide and cloud
+options: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Launch/LinkedIn kit: [`docs/PITCH.md`](docs/PITCH.md).
 
 ## 6) Example questions
 
@@ -184,8 +189,9 @@ docker compose up --build
 
 - ~~Add LLM answer synthesis with grounded citations.~~ **Phase 2 / 2.1 done** (see below).
 - ~~Add async ingestion workers and progress/status API.~~ **Phase 3 done** — job API + queue; evolve to Redis/RQ for multi-replica.
-- ~~Baseline eval questions + `run_eval.py`.~~ **Phase 5 baseline done** — extend with precision / groundedness metrics.
-- Deploy API + UI as separate cloud services (**Phase 6**).
+- ~~Baseline eval questions + `run_eval.py`.~~ **Phase 5 done** — gold corpus + deterministic metrics (MRR, precision@k, context coverage).
+- ~~Deploy API + UI as separate services with healthchecks.~~ **Phase 6 done** — Docker Compose deploy + `docs/DEPLOYMENT.md` (local + cloud).
+- Stretch: Redis-backed ingest jobs, managed vector DB (Qdrant/pgvector), cross-encoder re-rank, query filter by source.
 
 ## License
 

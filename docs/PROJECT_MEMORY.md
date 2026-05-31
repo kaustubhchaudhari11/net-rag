@@ -42,25 +42,24 @@ Use this file so assistants and future you can resume with the same **objective*
 | **Phase 2.1** — Quality & trust | Done | Metrics, `warnings`, chunk `page` / `section_hint`, Windows `.bat` |
 | **Phase 3** — Ingestion at scale | Done | `/ingest/job`, `/ingest/status`, queue + worker; sync `/ingest` kept |
 | **Phase 4** — Retrieval quality | Done | **BM25 + dense + RRF** (`app/rag/hybrid_retrieval.py`); `HYBRID_*` env; per-query override |
-| **Phase 5** — Evaluation baseline | Done | `docs/eval_questions.json`, `scripts/run_eval.py` (smoke + substring hints) |
-| **Phase 6** — Production deploy | **Next** | Cloud split, secrets, optional managed vector DB |
+| **Phase 5** — Evaluation | Done | Gold `docs/eval_corpus/*.md`, labeled `eval_questions.json`, metrics in `scripts/eval_lib.py` |
+| **Phase 6** — Production deploy | **Done** | Healthchecked Docker Compose, env substitution, named volume, `.dockerignore`, polished demo UI, `docs/DEPLOYMENT.md` + `docs/PITCH.md` |
+
+**All planned phases (0–6) are complete.** Project is demo-ready and deployable.
 
 ---
 
 ## Current focus (session memory)
 
-- **Next:** **Phase 6** (deploy) and optional **Phase 4/5 polish** (source filters, richer eval / groundedness).
-- **Ops:** `uvicorn --workers 1` (or Docker default) for in-memory ingest jobs; re-ingest after corpus changes (BM25 cache invalidates automatically).
+- **Done today:** Phase 6 — production Compose (healthchecks, `depends_on: service_healthy`, named `netrag-data` volume, env-var substitution), demo-grade Streamlit UI (health badge, example chips, metric chips, retrieval-path display), `docs/DEPLOYMENT.md`, `docs/PITCH.md` (LinkedIn kit), API `v1.0.0`.
+- **Launch:** record 45–75s captioned demo video (see `docs/PITCH.md`); push to GitHub; post on LinkedIn.
+- **Ops:** `uvicorn --workers 1` (Docker default) for in-memory ingest jobs; re-ingest after corpus changes (BM25 cache auto-invalidates).
 
 ---
 
 ## Upcoming phases (roadmap)
 
-### Phase 6 — Production-style deploy
-
-- Separate cloud deploy for API vs UI; secrets via env/secret manager; optional managed vector DB (Qdrant, etc.).
-
-### Stretch
+### Stretch (post-1.0)
 
 - Ingest: Redis-backed jobs, cancel, incremental index updates.
 - Retrieval: filter by `source_file`, cross-encoder re-rank, separate lexical service at scale.
@@ -71,9 +70,10 @@ Use this file so assistants and future you can resume with the same **objective*
 
 - [x] Phase 3 — job API + worker + UI poll
 - [x] Phase 4 — BM25 + dense RRF + ingest invalidation + `retrieval_mode` on `/query`
-- [x] Phase 5 — eval JSON + `run_eval.py`
-- [ ] Phase 6 — deploy playbook + optional managed DB
-- [ ] Optional: query filter by source; expand eval metrics
+- [x] Phase 5 — eval corpus + metrics (`eval_lib.py`, `run_eval.py`)
+- [x] Phase 6 — Docker Compose deploy (healthchecks, volume, env), demo UI, deployment + pitch docs
+- [ ] Launch: record demo video + LinkedIn post (`docs/PITCH.md`)
+- [ ] Stretch: Redis-backed jobs, query filter by source, managed vector DB, cross-encoder re-rank
 
 ---
 
