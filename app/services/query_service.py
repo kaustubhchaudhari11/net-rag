@@ -6,7 +6,7 @@ import requests
 
 from app.config import settings
 from app.rag.hybrid_retrieval import hybrid_search_rrf
-from app.rag.vector_store import load_index
+from app.rag.vector_store import index_exists, load_index
 
 _CITATION_PATTERN = re.compile(r"\[C(\d+)\]")
 
@@ -46,6 +46,9 @@ def search_context(
     elif retrieval_mode == "hybrid":
         use_hybrid = True
 
+    if not index_exists():
+        return []
+
     if use_hybrid:
         candidate_k = max(k, k * settings.hybrid_candidate_multiplier)
         return hybrid_search_rrf(
@@ -70,27 +73,19 @@ def _contexts_with_citation_ids(contexts: List[Dict[str, Any]]) -> List[Dict[str
 
 def _fallback_answer(query: str, contexts: List[Dict[str, Any]]) -> str:
     if not contexts:
-        return "No context found. Please ingest documents first."
-    lines: List[str] = [
-        "**Retrieval-only answer** — excerpts from your top retrieved snippets (no LLM). "
-        "Set **LLM_MODEL** and **LLM_API_KEY** in `.env` for one synthesized reply with `[C#]` citations.",
-        "",
-    ]
-    max_per_chunk = 900
-    max_chunks = 4
-    for item in contexts[:max_chunks]:
-        meta = item.get("metadata") or {}
-        cid = meta.get("citation_id", "?")
-        src = meta.get("source_file", "unknown")
-        text = (item.get("content") or "").strip()
-        if not text:
-            continue
-        excerpt = text if len(text) <= max_per_chunk else text[: max_per_chunk - 1] + "…"
-        lines.append(f"**[{cid}] {src}**\n\n{excerpt}\n")
-    lines.append(
-        "\n---\n*Expand “Retrieved Context” below for full chunks, or ingest RFC 793 for deeper TCP state detail.*"
+        return "No relevant passages found. Try loading documents from the sidebar first."
+    best = contexts[0]
+    meta = best.get("metadata") or {}
+    cid = meta.get("citation_id", "C1")
+    src = meta.get("source_file", "unknown")
+    text = (best.get("content") or "").strip()
+    max_len = 900
+    excerpt = text if len(text) <= max_len else text[: max_len - 1] + "…"
+    return (
+        f"{excerpt}\n\n"
+        f"_Most relevant passage, from **{src}** [{cid}]. "
+        f"Open **Evidence** for the supporting snippets._"
     )
-    return "\n".join(lines)
 
 
 def _llm_enabled() -> bool:
