@@ -32,9 +32,9 @@ def _search_context_dense_only(query: str, k: int) -> List[Dict[str, Any]]:
 
 def search_context(
     query: str,
-    top_k: int | None = None,
+    top_k: Optional[int] = None,
     *,
-    retrieval_mode: str | None = None,
+    retrieval_mode: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     retrieval_mode: None → follow ``HYBRID_ENABLED``; ``dense`` / ``hybrid`` force path.
@@ -208,9 +208,9 @@ def _citation_warnings(answer: str, num_contexts: int) -> List[str]:
 
 def build_answer(
     query: str,
-    top_k: int | None = None,
+    top_k: Optional[int] = None,
     *,
-    retrieval_mode: str | None = None,
+    retrieval_mode: Optional[str] = None,
 ) -> Dict[str, Any]:
     t0 = time.perf_counter()
     t_search0 = time.perf_counter()
