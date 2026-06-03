@@ -1,5 +1,6 @@
 import os
 import time
+from typing import Optional
 
 import requests
 import streamlit as st
@@ -53,7 +54,7 @@ DEMO_QUESTIONS = {
 }
 
 
-def api_health() -> dict | None:
+def api_health() -> Optional[dict]:
     try:
         r = requests.get(f"{API_BASE}/health", params={"detailed": "true"}, timeout=5)
         if r.ok:
@@ -191,7 +192,7 @@ def render_result(result: dict) -> None:
                 st.caption(w)
 
 
-def run_query(question: str, top_k: int, retrieval_mode: str | None) -> None:
+def run_query(question: str, top_k: int, retrieval_mode: Optional[str]) -> None:
     with st.spinner("Searching your documents..."):
         body: dict = {"query": question, "top_k": top_k}
         if retrieval_mode is not None:
